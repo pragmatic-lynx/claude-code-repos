@@ -48,11 +48,11 @@ src/config/tailscale/
 src/config/mcp/
 src/config/nginx/
 
-# Generated compose files (these are created dynamically)
+# Generated compose files
 docker-compose.*.yml
 !docker-compose.yml
 
-# Personal Claude Code session data (NEVER COMMIT!)
+# Claude Code session data
 *.credentials.json
 **/projects/
 **/shell-snapshots/
