@@ -1,0 +1,31 @@
+packages:
+  - name: yourai/ccr
+    type: github_release
+    repo_owner: yourai
+    repo_name: ccr
+    description: "CCR (Claude Code Repo) - Seamless repo-specific Claude Code containers with automatic context switching"
+    asset: "ccr_{{.OS}}_{{.Arch}}.tar.gz"
+    files:
+      - name: ccr
+    replacements:
+      darwin: Darwin
+      linux: Linux
+      amd64: x86_64
+      arm64: arm64
+    supported:
+      - darwin/amd64
+      - darwin/arm64
+      - linux/amd64
+      - linux/arm64
+    checksum:
+      type: github_release
+      asset: checksums.txt
+      file_format: raw
+    version_constraint: false
+    version_overrides:
+      - version_constraint: "= v1.0.0-dev"
+        files:
+          - name: ccr
+            src: install.sh
+        checksum:
+          enabled: false

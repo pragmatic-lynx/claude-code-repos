@@ -1,0 +1,7 @@
+registry:
+  name: yourai-local
+  description: "Local development registry for yourai tools"
+  homepage: "https://yourai.sh"
+  packages:
+    - type: standard
+      path: pkgs
