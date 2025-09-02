@@ -1,0 +1,120 @@
+# CCR (Claude Code Repos) - Git Ignore
+
+# Operating System
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.vim/
+
+# Logs and Runtime
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment Files (IMPORTANT: Don't commit secrets!)
+.env
+.env.local
+.env.production
+.env.staging
+*.key
+*.pem
+
+# Build Artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# CCR Specific - Critical: Personal data and credentials
+src/.env
+src/config/claude/
+src/config/tailscale/
+src/config/mcp/
+src/config/nginx/
+
+# Generated compose files (these are created dynamically)
+docker-compose.*.yml
+!docker-compose.yml
+
+# Personal Claude Code session data (NEVER COMMIT!)
+*.credentials.json
+**/projects/
+**/shell-snapshots/
+**/statsig/
+**/todos/
+session-*
+*.sessionid
+
+# Development artifacts
+ccr-dev.tar.gz
+build-dev-package.sh
+demo-*.sh
+test-*.log
+
+# Build and development scripts that vary by environment
+src/claude-standalone/
+src/claude-with-mcp-example/
+src/auth-test-api.py
+src/aci-integration.py
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Node.js (if any JS tooling is added)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python (if any Python tooling is added)
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Shell history and state
+.bash_history
+.zsh_history
+.history
+
+# Aqua/Mise development files
+.dev/aqua/cache/
+.aqua/
+.mise/
+
+# User data directories that shouldn't be in repo
+repos/
+docker-compose/
+.ccr/
+
+# Backup files
+*.bak
+*.backup
+*.old
+*~
+
+# Editor configurations (personal preferences)
+.editorconfig.local

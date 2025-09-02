@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Claude Code CLI workspace with integrated Tailscale
+  claude-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile.claude
+    container_name: claude-cli-workspace
+    hostname: claude-cli
+    environment:
+      - TZ=UTC
+      - ANTHROPIC_LOG_LEVEL=info
+      - TS_AUTHKEY=${TS_AUTHKEY}
+    volumes:
+      - anthropic_config:/home/claude/.config/anthropic
+      - workspace:/workspace
+      - command_history:/commandhistory
+      - tailscale_state:/var/lib/tailscale
+      - claude_home:/home/claude
+      - ./config/claude:/home/claude/.claude
+      - ./config/tailscale:/config
+    working_dir: /workspace
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+  # MCP Filesystem Server
+  mcp-filesystem:
+    image: node:20-slim
+    container_name: mcp-filesystem
+    networks:
+      - mcp-network
+    environment:
+      - MCP_LOG_LEVEL=info
+    volumes:
+      - workspace:/workspace:ro
+    working_dir: /workspace
+    command: >
+      sh -c "npm install -g @modelcontextprotocol/server-filesystem &&
+             npx @modelcontextprotocol/server-filesystem /workspace"
+    restart: unless-stopped
+
+  # MCP Git Server (Python-based)
+  mcp-git:
+    image: python:3.11-slim
+    container_name: mcp-git
+    networks:
+      - mcp-network
+    environment:
+      - MCP_LOG_LEVEL=info
+    volumes:
+      - workspace:/workspace
+    working_dir: /workspace
+    command: >
+      sh -c "apt update && apt install -y git &&
+             pip install mcp-server-git &&
+             cd /workspace && 
+             if [ ! -d .git ]; then git init && git config user.name 'MCP Git' && git config user.email 'mcp@example.com'; fi &&
+             python -m mcp_server_git --repository /workspace"
+    restart: unless-stopped
+
+networks:
+  mcp-network:
+    driver: bridge
+    internal: false
+
+volumes:
+  anthropic_config:
+    driver: local
+  tailscale_state:
+    driver: local
+  workspace:
+    driver: local
+  command_history:
+    driver: local
+  claude_home:
+    driver: local
+  mcp_data:
+    driver: local

@@ -1,0 +1,43 @@
+{
+  "name": "ccr",
+  "version": "0.1.0",
+  "description": "Repo-specific Claude Code containers with automatic context switching",
+  "keywords": [
+    "claude-code",
+    "containers",
+    "docker",
+    "development",
+    "repository",
+    "isolation",
+    "context-switching"
+  ],
+  "homepage": "https://github.com/pragmatic-lynx/claude-code-repos",
+  "bugs": {
+    "url": "https://github.com/pragmatic-lynx/claude-code-repos/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pragmatic-lynx/claude-code-repos.git"
+  },
+  "license": "MIT",
+  "author": "CCR Contributors",
+  "scripts": {
+    "install": "./install.sh",
+    "lint": "./scripts/lint.sh",
+    "format": "./scripts/format.sh",
+    "test": "make test",
+    "check": "make check"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "dependencies": {},
+  "devDependencies": {},
+  "peerDependencies": {
+    "docker": ">=20.0.0"
+  }
+}

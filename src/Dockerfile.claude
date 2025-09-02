@@ -1,0 +1,273 @@
+FROM node:20-slim
+
+ARG TZ=UTC
+ENV TZ="$TZ"
+
+# Install system dependencies including Tailscale
+RUN apt update && apt install -y \
+    less \
+    git \
+    procps \
+    fzf \
+    zsh \
+    man-db \
+    unzip \
+    gnupg2 \
+    ipset \
+    iproute2 \
+    dnsutils \
+    ripgrep \
+    jq \
+    wget \
+    curl \
+    openssh-client \
+    openssh-server \
+    python3 \
+    python3-pip \
+    vim \
+    nano \
+    sudo \
+    ca-certificates \
+    bat \
+    direnv \
+    fd-find \
+    && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg | tee /usr/share/keyrings/tailscale-archive-keyring.gpg >/dev/null \
+    && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.tailscale-keyring.list | tee /etc/apt/sources.list.d/tailscale.list \
+    && apt update \
+    && apt install -y tailscale \
+    && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install eza (modern exa fork - better maintained)
+RUN ARCH=$(dpkg --print-architecture) \
+    && if [ "$ARCH" = "amd64" ]; then EZA_ARCH="x86_64"; else EZA_ARCH="$ARCH"; fi \
+    && wget "https://github.com/eza-community/eza/releases/download/v0.19.0/eza_${EZA_ARCH}-unknown-linux-gnu.tar.gz" \
+    && tar -xzf "eza_${EZA_ARCH}-unknown-linux-gnu.tar.gz" \
+    && mv eza /usr/local/bin/ \
+    && rm -rf "eza_${EZA_ARCH}-unknown-linux-gnu.tar.gz" \
+    && chmod +x /usr/local/bin/eza \
+    && ln -sf /usr/local/bin/eza /usr/local/bin/exa
+
+# Install dust (modern du replacement)
+RUN ARCH=$(dpkg --print-architecture) \
+    && if [ "$ARCH" = "amd64" ]; then DUST_ARCH="x86_64"; else DUST_ARCH="$ARCH"; fi \
+    && wget "https://github.com/bootandy/dust/releases/download/v0.8.6/dust-v0.8.6-${DUST_ARCH}-unknown-linux-gnu.tar.gz" \
+    && tar -xzf "dust-v0.8.6-${DUST_ARCH}-unknown-linux-gnu.tar.gz" \
+    && mv "dust-v0.8.6-${DUST_ARCH}-unknown-linux-gnu/dust" /usr/local/bin/ \
+    && rm -rf "dust-v0.8.6-${DUST_ARCH}-unknown-linux-gnu.tar.gz" "dust-v0.8.6-${DUST_ARCH}-unknown-linux-gnu/" \
+    && chmod +x /usr/local/bin/dust
+
+# Create FZF configuration directory to fix startup warnings
+RUN mkdir -p /usr/share/doc/fzf/examples \
+    && echo "# FZF key bindings placeholder" > /usr/share/doc/fzf/examples/key-bindings.zsh \
+    && echo "# FZF completion placeholder" > /usr/share/doc/fzf/examples/completion.zsh
+
+# Create non-root user (reuse existing node user from base image)
+ARG USERNAME=claude
+ARG USER_UID=1000
+ARG USER_GID=$USER_UID
+
+# The node:20-slim image already has a 'node' user with UID/GID 1000
+# We'll create a claude user with a different UID, or rename the node user
+RUN usermod -l $USERNAME -d /home/$USERNAME -s /bin/zsh node \
+    && groupmod -n $USERNAME node \
+    && mkdir -p /home/$USERNAME \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME \
+    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Configure SSH server for Tailscale SSH with fallback user creation
+RUN mkdir -p /var/run/sshd \
+    && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
+    && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config \
+    && echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config \
+    && echo "Port 22" >> /etc/ssh/sshd_config \
+    && echo "AuthorizedKeysFile .ssh/authorized_keys" >> /etc/ssh/sshd_config \
+    && echo "PermitEmptyPasswords no" >> /etc/ssh/sshd_config \
+    && echo "ChallengeResponseAuthentication no" >> /etc/ssh/sshd_config
+
+# Set password for claude user and root (for SSH access) 
+RUN echo "$USERNAME:claude123" | chpasswd \
+    && echo "root:claude123" | chpasswd
+
+# Set up command history persistence
+RUN mkdir -p /commandhistory \
+    && touch /commandhistory/.bash_history \
+    && touch /commandhistory/.zsh_history \
+    && chown -R $USERNAME:$USERNAME /commandhistory
+
+# Create directories for user
+RUN mkdir -p /workspace /home/$USERNAME/.config/anthropic /home/$USERNAME/.claude \
+    && chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME
+
+# Install git-delta for better git diffs
+RUN ARCH=$(dpkg --print-architecture) \
+    && wget "https://github.com/dandavison/delta/releases/download/0.18.2/git-delta_0.18.2_${ARCH}.deb" \
+    && dpkg -i "git-delta_0.18.2_${ARCH}.deb" \
+    && rm "git-delta_0.18.2_${ARCH}.deb"
+
+# Switch to non-root user
+USER $USERNAME
+
+# Set up npm global directory
+ENV NPM_CONFIG_PREFIX=/home/$USERNAME/.npm-global
+ENV PATH=$PATH:/home/$USERNAME/.npm-global/bin:/home/$USERNAME/.local/bin
+
+# Set shell and environment
+ENV SHELL=/bin/zsh
+ENV DEVCONTAINER=true
+
+# Set up basic zsh with plugins
+RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v1.2.1/zsh-in-docker.sh)" -- \
+    -t powerlevel10k \
+    -p git \
+    -p fzf \
+    -p https://github.com/zsh-users/zsh-autosuggestions \
+    -p https://github.com/zsh-users/zsh-syntax-highlighting \
+    -p https://github.com/zsh-users/zsh-history-substring-search
+
+# Add custom zsh configuration
+RUN echo '# Enhanced shell configuration' >> ~/.zshrc \
+    && echo 'export HISTFILE=/commandhistory/.zsh_history' >> ~/.zshrc \
+    && echo 'export HISTSIZE=10000' >> ~/.zshrc \
+    && echo 'export SAVEHIST=10000' >> ~/.zshrc \
+    && echo 'setopt SHARE_HISTORY' >> ~/.zshrc \
+    && echo 'setopt HIST_VERIFY' >> ~/.zshrc \
+    && echo 'setopt HIST_IGNORE_ALL_DUPS' >> ~/.zshrc \
+    && echo 'setopt HIST_SAVE_NO_DUPS' >> ~/.zshrc \
+    && echo 'setopt HIST_IGNORE_SPACE' >> ~/.zshrc \
+    && echo 'setopt HIST_FIND_NO_DUPS' >> ~/.zshrc \
+    && echo 'export FZF_DEFAULT_COMMAND="rg --files --hidden --follow --glob \"!.git/*\""' >> ~/.zshrc \
+    && echo 'export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"' >> ~/.zshrc \
+    && echo 'export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border"' >> ~/.zshrc \
+    && echo 'bindkey "^[[A" history-substring-search-up' >> ~/.zshrc \
+    && echo 'bindkey "^[[B" history-substring-search-down' >> ~/.zshrc \
+    && echo 'eval "$(direnv hook zsh)"' >> ~/.zshrc
+
+# Add aliases and functions
+RUN echo '# Modern CLI aliases' >> ~/.zshrc \
+    && echo 'alias ls="eza --color=always --group-directories-first"' >> ~/.zshrc \
+    && echo 'alias ll="eza -alF --color=always --group-directories-first"' >> ~/.zshrc \
+    && echo 'alias la="eza -a --color=always --group-directories-first"' >> ~/.zshrc \
+    && echo 'alias lt="eza -aT --color=always --group-directories-first"' >> ~/.zshrc \
+    && echo 'alias cat="bat --paging=never"' >> ~/.zshrc \
+    && echo 'alias grep="rg"' >> ~/.zshrc \
+    && echo 'alias find="fd"' >> ~/.zshrc \
+    && echo 'alias du="dust"' >> ~/.zshrc \
+    && echo '# Git aliases' >> ~/.zshrc \
+    && echo 'alias gs="git status"' >> ~/.zshrc \
+    && echo 'alias ga="git add"' >> ~/.zshrc \
+    && echo 'alias gc="git commit"' >> ~/.zshrc \
+    && echo 'alias gp="git push"' >> ~/.zshrc \
+    && echo 'alias gl="git pull"' >> ~/.zshrc \
+    && echo 'alias gd="git diff"' >> ~/.zshrc \
+    && echo 'alias gb="git branch"' >> ~/.zshrc \
+    && echo 'alias gco="git checkout"' >> ~/.zshrc \
+    && echo 'alias glog="git log --oneline --graph --decorate"' >> ~/.zshrc
+
+# Add useful functions
+RUN echo '# Useful functions' >> ~/.zshrc \
+    && echo 'mkcd() { mkdir -p "$1" && cd "$1" }' >> ~/.zshrc \
+    && echo 'extract() { case "$1" in *.tar.gz) tar -xzf "$1";; *.zip) unzip "$1";; *) echo "Unknown format";; esac }' >> ~/.zshrc \
+    && echo 'gclone() { git clone "$1" && cd $(basename "$1" .git) }' >> ~/.zshrc \
+    && echo 'ports() { ss -tuln | grep LISTEN }' >> ~/.zshrc \
+    && echo 'weather() { curl -s "wttr.in/${1:-}" }' >> ~/.zshrc \
+    && echo '# Gemini CLI functions' >> ~/.zshrc \
+    && echo 'gemini-login() { echo "Starting Gemini CLI OAuth login..." && gemini auth login --oauth }' >> ~/.zshrc \
+    && echo 'gemini-status() { gemini auth status 2>/dev/null || echo "Not authenticated. Run: gemini-login" }' >> ~/.zshrc \
+    && echo 'gemini-help() { echo "Gemini CLI commands:" && echo "  gemini-login  - OAuth login with Google account" && echo "  gemini-status - Check authentication status" && echo "  gemini chat   - Start interactive chat" && echo "  gemini --help - Full help" }' >> ~/.zshrc
+
+# Install Python packages (using --break-system-packages for container environment)
+RUN pip install --user --upgrade --break-system-packages uv code-index-mcp
+
+# Install Claude Code CLI and Google Gemini CLI
+RUN npm install -g @anthropic-ai/claude-code @google/gemini-cli
+
+# Set up SSH configuration for Tailscale SSH
+RUN mkdir -p /home/$USERNAME/.ssh \
+    && echo "Host *" > /home/$USERNAME/.ssh/config \
+    && echo "  StrictHostKeyChecking accept-new" >> /home/$USERNAME/.ssh/config \
+    && echo "  UserKnownHostsFile /dev/null" >> /home/$USERNAME/.ssh/config \
+    && chmod 700 /home/$USERNAME/.ssh \
+    && chmod 600 /home/$USERNAME/.ssh/config
+
+WORKDIR /workspace
+
+# Switch back to root to copy and configure the script
+USER root
+
+# Copy SSH user creation script
+COPY create-ssh-user.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/create-ssh-user.sh
+
+# Copy authentication management scripts
+COPY auth-manager.sh /usr/local/bin/
+COPY claude-startup.sh /usr/local/bin/
+COPY auth-test-api.py /usr/local/bin/
+COPY simple-zsh-setup.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/auth-manager.sh && \
+    chmod +x /usr/local/bin/claude-startup.sh && \
+    chmod +x /usr/local/bin/auth-test-api.py && \
+    chmod +x /usr/local/bin/simple-zsh-setup.sh
+
+# Switch back to claude user
+USER $USERNAME
+
+# Create entrypoint script with Tailscale integration
+RUN echo '#!/bin/zsh\n\
+# Set up git configuration if not already set\n\
+if [ -z "$(git config --global user.name)" ]; then\n\
+    echo "Setting up default git configuration..."\n\
+    git config --global user.name "Claude Code User"\n\
+    git config --global user.email "claude@example.com"\n\
+    git config --global init.defaultBranch main\n\
+    git config --global core.pager delta\n\
+    git config --global interactive.diffFilter "delta --color-only"\n\
+    git config --global delta.navigate true\n\
+    git config --global delta.light false\n\
+    git config --global merge.conflictstyle diff3\n\
+    git config --global diff.colorMoved default\n\
+    git config --global pull.rebase false\n\
+    git config --global push.default simple\n\
+    git config --global alias.st status\n\
+    git config --global alias.co checkout\n\
+    git config --global alias.br branch\n\
+    git config --global alias.ci commit\n\
+    git config --global alias.unstage "reset HEAD --"\n\
+    git config --global alias.last "log -1 HEAD"\n\
+    git config --global alias.visual "!gitk"\n\
+    echo "Enhanced git configuration complete!"\n\
+fi\n\
+\n\
+# Create SSH users dynamically\n\
+sudo /usr/local/bin/create-ssh-user.sh || echo "User creation script not found, continuing..."\n\
+\n\
+# Start Tailscale daemon\n\
+echo "Starting Tailscaled..."\n\
+sudo mkdir -p /var/run/tailscale /var/lib/tailscale\n\
+sudo tailscaled --state=/var/lib/tailscale/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &\n\
+\n\
+# Wait for daemon to start\n\
+sleep 3\n\
+\n\
+# Connect to Tailscale with SSH enabled\n\
+if [ -n "$TS_AUTHKEY" ]; then\n\
+    echo "Connecting to Tailscale with SSH enabled..."\n\
+    sudo tailscale up --authkey="$TS_AUTHKEY" --ssh --hostname=claude-cli --reset || echo "Tailscale connection failed, continuing..."\n\
+fi\n\
+\n\
+# Start SSH daemon as fallback\n\
+if ! pgrep sshd > /dev/null; then\n\
+    echo "Starting SSH daemon as fallback..."\n\
+    sudo /usr/sbin/sshd -D &\n\
+fi\n\
+\n\
+echo "Claude Code CLI container ready!"\n\
+echo "To login: claude code login"\n\
+echo "To start: claude code"\n\
+echo ""\n\
+exec "$@"' > /home/$USERNAME/entrypoint.sh \
+    && chmod +x /home/$USERNAME/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/claude-startup.sh"]
+CMD ["/bin/zsh"]
