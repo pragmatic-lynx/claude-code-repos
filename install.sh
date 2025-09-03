@@ -122,10 +122,19 @@ setup_shell_integration() {
             ;;
     esac
     
-    # Check if already configured
-    if grep -q "ccr activate" "$shell_config" 2>/dev/null; then
+    # Check if already configured - look for our specific comment marker
+    if grep -q "# CCR (Claude Code Repo) integration" "$shell_config" 2>/dev/null; then
         info "Shell integration already configured in $shell_config"
         return
+    fi
+    
+    # Also remove any old CCR entries to prevent duplicates
+    if grep -q "ccr activate" "$shell_config" 2>/dev/null; then
+        warn "Found existing CCR entries, cleaning them up..."
+        # Create backup
+        cp "$shell_config" "${shell_config}.ccr-backup"
+        # Remove old CCR lines
+        grep -v "ccr activate" "$shell_config" > "${shell_config}.tmp" && mv "${shell_config}.tmp" "$shell_config"
     fi
     
     # Add ccr activation and PATH to shell config
@@ -173,6 +182,7 @@ USAGE:
 OPTIONS:
     --help, -h       Show this help message
     --clean          Clean install (remove existing CCR installation)
+    --clean-shell    Clean shell config (remove duplicate CCR entries)
 
 ENVIRONMENT VARIABLES:
     CCR_HOME         CCR installation directory (default: ~/.ccr)
@@ -196,7 +206,12 @@ while [[ $# -gt 0 ]]; do
         --clean)
             warn "Cleaning existing CCR installation..."
             rm -rf "$CCR_HOME"
-            mise uninstall aqua:yourai/ccr 2>/dev/null || true
+            rm -f "$HOME/.local/bin/ccr"
+            ;;
+        --clean-shell)
+            log "Cleaning shell configuration..."
+            "$SCRIPT_DIR/cleanup-shell.sh"
+            exit 0
             ;;
         *)
             error "Unknown option: $1"

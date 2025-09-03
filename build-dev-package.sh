@@ -87,9 +87,21 @@ case "${1:-}" in
         mkdir -p "$CCR_HOME"/{bin,shims,containers,config}
         
         # Copy source files if available (for local development)
-        local source_dir="/home/dev/repos/ccdocker/src"
-        if [ -d "$source_dir" ]; then
-            log "Installing from local development source..."
+        # Try multiple possible source locations
+        source_dir=""
+        for possible_dir in \
+            "$PWD/src" \
+            "$(dirname "$PWD")/src" \
+            "/home/dev/repos/ccdocker/src" \
+            "$(find "$HOME" -name "repo-manager.sh" -path "*/src/*" | head -1 | xargs dirname 2>/dev/null)"; do
+            if [ -d "$possible_dir" ] && [ -f "$possible_dir/repo-manager.sh" ]; then
+                source_dir="$possible_dir"
+                break
+            fi
+        done
+        
+        if [ -n "$source_dir" ] && [ -d "$source_dir" ]; then
+            log "Installing from local development source: $source_dir"
             
             # Copy core files
             cp "$source_dir/repo-manager.sh" "$CCR_HOME/bin/ccr-repo-manager" 2>/dev/null || warn "repo-manager.sh not found"
@@ -105,7 +117,9 @@ case "${1:-}" in
             info "CCR system installed from local development source"
         else
             # Try to download from GitHub (future)
-            warn "Local source not found. GitHub download not yet implemented."
+            warn "Local source not found in common locations."
+            warn "Searched: ./src, ../src, /home/dev/repos/ccdocker/src, and PATH"
+            warn "GitHub download not yet implemented."
             warn "Manual installation required."
         fi
         
