@@ -142,6 +142,14 @@ case "${1:-}" in
                 fi
             done
             
+            # Copy Python files
+            for file in "$source_dir"/*.py; do
+                if [ -f "$file" ]; then
+                    filename=$(basename "$file")
+                    cp "$file" "$CCR_HOME/containers/$filename"
+                fi
+            done
+            
             if [ -f "$source_dir/Dockerfile.claude" ]; then
                 cp "$source_dir/Dockerfile.claude" "$CCR_HOME/containers/"
             fi

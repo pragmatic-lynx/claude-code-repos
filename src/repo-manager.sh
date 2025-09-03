@@ -100,8 +100,7 @@ services:
       - anthropic_config:/home/claude/.config/anthropic
       - ${repo_path}:/workspace
       - command_history_${repo_name}:/commandhistory
-      - claude_home:/home/claude
-      - ./config/claude:/home/claude/.claude${tailscale_volumes}
+      - claude_config:/home/claude/.claude${tailscale_volumes}
     working_dir: /workspace${tailscale_devices}${tailscale_caps}
     restart: unless-stopped
     tty: true
@@ -162,11 +161,11 @@ networks:
 
 volumes:
   anthropic_config:
-    external: true
+    driver: local
   command_history_${repo_name}:
     driver: local
-  claude_home:
-    external: true$([ "$USE_TAILSCALE" = "true" ] && echo "
+  claude_config:
+    driver: local$([ "$USE_TAILSCALE" = "true" ] && echo "
   tailscale_state_${repo_name}:
     driver: local")
 EOF

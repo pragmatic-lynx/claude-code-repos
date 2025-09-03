@@ -14,6 +14,29 @@ error() {
     echo "[ERROR] $1" >&2
 }
 
+# Fix directory permissions for volume mounts
+fix_permissions() {
+    log "Fixing directory permissions..."
+    
+    # Ensure claude user owns home directory and subdirectories
+    sudo chown -R $USERNAME:$USERNAME /home/$USERNAME
+    
+    # Create .claude directory if it doesn't exist and ensure permissions
+    mkdir -p "$CLAUDE_CONFIG_DIR"
+    chown $USERNAME:$USERNAME "$CLAUDE_CONFIG_DIR"
+    chmod 755 "$CLAUDE_CONFIG_DIR"
+    
+    # Create .claude/plugins directory
+    mkdir -p "$CLAUDE_CONFIG_DIR/plugins"
+    chown $USERNAME:$USERNAME "$CLAUDE_CONFIG_DIR/plugins"
+    chmod 755 "$CLAUDE_CONFIG_DIR/plugins"
+    
+    # Create other necessary directories
+    mkdir -p "/home/$USERNAME/.config/anthropic"
+    chown $USERNAME:$USERNAME "/home/$USERNAME/.config/anthropic"
+    chmod 755 "/home/$USERNAME/.config/anthropic"
+}
+
 # Set up git configuration if not already set
 setup_git() {
     if [ -z "$(git config --global user.name)" ]; then
@@ -134,7 +157,10 @@ setup_shell() {
 main() {
     log "Claude Code CLI container starting up..."
     
-    # Setup git first
+    # Fix permissions first (for volume mounts)
+    fix_permissions
+    
+    # Setup git
     setup_git
     
     # Setup SSH components
