@@ -18,6 +18,14 @@ error() {
 fix_permissions() {
     log "Fixing directory permissions..."
     
+    # If HOST_UID and HOST_GID are set, update claude user to match host user
+    if [ -n "${HOST_UID:-}" ] && [ -n "${HOST_GID:-}" ]; then
+        log "Updating claude user ID to match host user ($HOST_UID:$HOST_GID)"
+        # Update user and group IDs to match host
+        sudo usermod -u "$HOST_UID" "$USERNAME" 2>/dev/null || true
+        sudo groupmod -g "$HOST_GID" "$USERNAME" 2>/dev/null || true
+    fi
+    
     # Ensure claude user owns home directory and subdirectories
     sudo chown -R $USERNAME:$USERNAME /home/$USERNAME
     
@@ -35,6 +43,12 @@ fix_permissions() {
     mkdir -p "/home/$USERNAME/.config/anthropic"
     chown $USERNAME:$USERNAME "/home/$USERNAME/.config/anthropic"
     chmod 755 "/home/$USERNAME/.config/anthropic"
+    
+    # Fix workspace permissions (this is the key for file ownership)
+    if [ -d "/workspace" ]; then
+        log "Fixing workspace permissions to match host user"
+        sudo chown -R $USERNAME:$USERNAME /workspace
+    fi
 }
 
 # Set up git configuration if not already set

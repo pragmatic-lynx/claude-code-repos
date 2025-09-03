@@ -96,6 +96,8 @@ services:
       - TZ=UTC
       - ANTHROPIC_LOG_LEVEL=info
       - REPO_NAME=${repo_name}${git_env}${tailscale_env}
+      - HOST_UID=$(id -u)
+      - HOST_GID=$(id -g)
     volumes:
       - anthropic_config:/home/claude/.config/anthropic
       - ${repo_path}:/workspace
@@ -182,7 +184,9 @@ init_repo() {
     local repo_path="${REPOS_BASE_DIR}/${repo_name}"
     
     if [ ! -d "$repo_path" ]; then
-        error "Repository directory does not exist: $repo_path"
+        log "Repository directory does not exist, creating: $repo_path"
+        mkdir -p "$repo_path"
+        log "Repository directory created successfully"
     fi
     
     log "Initializing Claude Code container for repo: $repo_name"

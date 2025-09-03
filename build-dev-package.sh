@@ -62,10 +62,87 @@ case "${1:-}" in
         echo "ccr v1.0.0-dev (installed via mise)"
         ;;
     
+    # Main repository management commands
     "repo"|"r")
         shift
         if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
             exec "$CCR_HOME/bin/ccr-repo-manager" "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    # Direct repo management shortcuts
+    "init")
+        shift
+        if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
+            exec "$CCR_HOME/bin/ccr-repo-manager" init "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    "clone")
+        shift
+        if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
+            exec "$CCR_HOME/bin/ccr-repo-manager" clone "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    "start")
+        shift
+        if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
+            exec "$CCR_HOME/bin/ccr-repo-manager" start "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    "stop")
+        shift
+        if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
+            exec "$CCR_HOME/bin/ccr-repo-manager" stop "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    "list"|"ls")
+        shift
+        if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
+            exec "$CCR_HOME/bin/ccr-repo-manager" list "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    "exec")
+        shift
+        if [ -f "$CCR_HOME/bin/ccr-repo-manager" ]; then
+            exec "$CCR_HOME/bin/ccr-repo-manager" exec "$@"
+        else
+            error "CCR system not fully installed. Run: ccr install"
+            exit 1
+        fi
+        ;;
+    
+    "config")
+        shift
+        if [ -f "$CCR_HOME/bin/config.sh" ]; then
+            source "$CCR_HOME/bin/config.sh"
+            if [ "${1:-}" = "wizard" ]; then
+                ccr_config_wizard
+            else
+                ccr_show_config
+            fi
         else
             error "CCR system not fully installed. Run: ccr install"
             exit 1
@@ -154,6 +231,29 @@ case "${1:-}" in
                 cp "$source_dir/Dockerfile.claude" "$CCR_HOME/containers/"
             fi
             
+            # Create convenience wrapper scripts
+            cat > "$CCR_HOME/bin/cr" << 'CREOF'
+#!/bin/bash
+# Quick access wrapper for CCR
+# Usage: cr <repo-name> - enters the container
+#        cr <command> - runs ccr command
+
+if [ $# -eq 1 ] && [ -d "$HOME/repos/$1" ]; then
+    # Single argument that's a repo name - enter the container  
+    exec "$HOME/.local/bin/ccr" exec "$1"
+else
+    # Pass through to main ccr command
+    exec "$HOME/.local/bin/ccr" "$@"
+fi
+CREOF
+
+            cat > "$CCR_HOME/bin/claude-repo" << 'CLAUDEREPOEOF'
+#!/bin/bash
+# Legacy claude-repo command - redirects to ccr
+echo "Note: claude-repo is deprecated. Use 'ccr' instead."
+exec "$HOME/.local/bin/ccr" "$@"
+CLAUDEREPOEOF
+
             chmod +x "$CCR_HOME/bin"/* 2>/dev/null || true
             chmod +x "$CCR_HOME/containers"/*.sh 2>/dev/null || true
             
@@ -197,18 +297,36 @@ USAGE:
 COMMANDS:
     version              Show version
     install              Install full CCR system
-    repo, r              Manage repo containers (after install)
+    
+    # Repository Management
+    init <name>          Initialize repo container (auto-creates directory)
+    clone <name>         Clone repo from Git and create container
+    start <name>         Start existing repo container  
+    stop <name>          Stop repo container
+    exec <name> [cmd]    Execute command in repo container
+    list, ls             List all repo containers and status
+    
+    # Configuration
+    config               Show current configuration
+    config wizard        Interactive configuration setup
+    
+    # System
     activate <shell>     Generate shell integration
     detect, status       Show current repo context
     help                 Show this help
 
 EXAMPLES:
-    ccr install          # Install full CCR system
-    ccr repo init my-app # Initialize repo container
-    ccr detect           # Show current repo context
+    ccr install              # Install full CCR system
+    ccr init my-app          # Create and start container for my-app
+    ccr start my-app         # Start existing container
+    ccr exec my-app          # Enter shell in container
+    ccr exec my-app "claude --version"  # Run command in container
+    ccr config wizard        # Configure Git provider & settings
+    ccr list                 # Show all containers
 
-This is the development version installed via mise.
-Run 'ccr install' to set up the full CCR system.
+CONSOLIDATED COMMANDS:
+    All repository management is now unified under 'ccr'.
+    No need for separate 'claude-repo' or 'cr' commands.
 
 HELP
         ;;

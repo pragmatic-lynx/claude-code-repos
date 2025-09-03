@@ -73,6 +73,19 @@ install_ccr() {
         exit 1
     fi
     
+    # Copy convenience scripts to local bin for global access
+    if [ -f "$CCR_HOME/bin/cr" ]; then
+        cp "$CCR_HOME/bin/cr" "$HOME/.local/bin/cr"
+        chmod +x "$HOME/.local/bin/cr"
+        info "Installed 'cr' command"
+    fi
+    
+    if [ -f "$CCR_HOME/bin/claude-repo" ]; then
+        cp "$CCR_HOME/bin/claude-repo" "$HOME/.local/bin/claude-repo"
+        chmod +x "$HOME/.local/bin/claude-repo"  
+        info "Installed legacy 'claude-repo' command"
+    fi
+    
     # Add to current PATH for immediate use
     export PATH="$HOME/.local/bin:$PATH"
     
