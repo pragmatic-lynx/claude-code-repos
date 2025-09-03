@@ -82,7 +82,7 @@ generate_compose_config() {
       - /dev/net/tun:/dev/net/tun"
     fi
     
-    cat > "$HOME/docker-compose/docker-compose.${repo_name}.yml" << EOF
+    cat > "$SCRIPT_DIR/../containers/docker-compose.${repo_name}.yml" << EOF
 version: '3.8'
 
 services:
@@ -194,7 +194,7 @@ init_repo() {
     
     # Start the container
     log "Starting container for $repo_name..."
-    cd "$SCRIPT_DIR"
+    cd "$SCRIPT_DIR/../containers"
     docker compose -f "docker-compose.${repo_name}.yml" up -d
     
     # Wait for container to be ready
@@ -266,15 +266,15 @@ start_repo() {
         error "Repository name is required. Usage: claude-repo start <repo-name>"
     fi
     
-    local compose_file="${SCRIPT_DIR}/docker-compose.${repo_name}.yml"
+    local compose_file="${SCRIPT_DIR}/../containers/docker-compose.${repo_name}.yml"
     
     if [ ! -f "$compose_file" ]; then
         error "No container configuration found for repo: $repo_name. Run 'claude-repo init $repo_name' first."
     fi
     
     log "Starting container for repo: $repo_name"
-    cd "$SCRIPT_DIR"
-    docker compose -f "$compose_file" up -d
+    cd "$SCRIPT_DIR/../containers"
+    docker compose -f "$(basename "$compose_file")" up -d
     
     info "Container for '$repo_name' is running!"
 }
@@ -287,15 +287,15 @@ stop_repo() {
         error "Repository name is required. Usage: claude-repo stop <repo-name>"
     fi
     
-    local compose_file="${SCRIPT_DIR}/docker-compose.${repo_name}.yml"
+    local compose_file="${SCRIPT_DIR}/../containers/docker-compose.${repo_name}.yml"
     
     if [ ! -f "$compose_file" ]; then
         error "No container configuration found for repo: $repo_name"
     fi
     
     log "Stopping container for repo: $repo_name"
-    cd "$SCRIPT_DIR"
-    docker compose -f "$compose_file" down
+    cd "$SCRIPT_DIR/../containers"
+    docker compose -f "$(basename "$compose_file")" down
     
     info "Container for '$repo_name' stopped."
 }
@@ -329,8 +329,8 @@ list_repos() {
     echo
     
     # List compose files
-    if ls "${SCRIPT_DIR}"/docker-compose.*.yml 1> /dev/null 2>&1; then
-        for compose_file in "${SCRIPT_DIR}"/docker-compose.*.yml; do
+    if ls "${SCRIPT_DIR}/../containers"/docker-compose.*.yml 1> /dev/null 2>&1; then
+        for compose_file in "${SCRIPT_DIR}/../containers"/docker-compose.*.yml; do
             local filename=$(basename "$compose_file")
             if [[ "$filename" =~ docker-compose\.(.*)\.yml ]]; then
                 local repo_name="${BASH_REMATCH[1]}"
