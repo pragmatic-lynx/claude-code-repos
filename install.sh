@@ -189,9 +189,12 @@ ENVIRONMENT VARIABLES:
 
 This script will:
 1. Build CCR development package
-2. Install CCR to ~/.local/bin
+2. Install CCR to ~/.local/bin (independent of mise)
 3. Set up full CCR system
 4. Configure shell integration
+
+NOTE: This installation is completely independent of mise and will not
+affect your existing mise projects or global mise settings.
 
 EOF
 }

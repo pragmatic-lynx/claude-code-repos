@@ -198,9 +198,9 @@ echo "🧪 Testing binary:"
 "$BUILD_DIR/ccr" version
 
 echo ""
-echo "🎉 Development package ready for mise testing!"
+echo "🎉 Development package ready for installation!"
 echo ""
 echo "Usage:"
-echo "  1. Start registry: python3 -m http.server 8077 -d .dev/aqua &"
-echo "  2. Configure mise: export MISE_AQUA_REGISTRY_URL=\"http://127.0.0.1:8077/\""
-echo "  3. Install: mise use aqua:yourai/ccr@v1.0.0-dev"
+echo "  1. Run the install script: ./install.sh"
+echo "  2. Restart your shell or: source ~/.zshrc"
+echo "  3. Initialize repos: ccr repo init <repo-name>"

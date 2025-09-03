@@ -59,7 +59,7 @@ log "Removing duplicate CCR entries..."
 
 # Create temp file with cleaned content
 temp_file="${shell_config}.tmp"
-grep -v "ccr activate\|# CCR.*integration\|mise activate" "$shell_config" | \
+grep -v "ccr activate\|# CCR.*integration" "$shell_config" | \
     # Remove empty lines that might be left behind
     awk '/^$/ {if (empty) next; empty=1; next} {empty=0} 1' > "$temp_file"
 
