@@ -1,7 +1,7 @@
 #!/bin/bash
 # CCR Configuration Management
 
-CCR_CONFIG_FILE="$HOME/.ccr/config"
+CCR_CONFIG_FILE="$HOME/.ccr/config/ccr.conf"
 
 # Default configuration values
 CCR_DEFAULT_GIT_PROVIDER="github"

@@ -126,6 +126,7 @@ case "${1:-}" in
             # Copy core files with line ending fixes
             copy_and_fix_endings "$source_dir/repo-manager.sh" "$CCR_HOME/bin/ccr-repo-manager" || warn "repo-manager.sh not found"
             copy_and_fix_endings "$source_dir/aliases.sh" "$CCR_HOME/bin/ccr-aliases" || warn "aliases.sh not found"
+            copy_and_fix_endings "$source_dir/config.sh" "$CCR_HOME/bin/config.sh" || warn "config.sh not found"
             
             # Copy container configs (fix line endings for shell scripts)
             for file in "$source_dir"/docker-compose*.yml; do
