@@ -87,13 +87,15 @@ case "${1:-}" in
         mkdir -p "$CCR_HOME"/{bin,shims,containers,config}
         
         # Copy source files if available (for local development)
-        # Try multiple possible source locations
+        # Try multiple possible source locations (specific paths only)
         source_dir=""
         for possible_dir in \
             "$PWD/src" \
             "$(dirname "$PWD")/src" \
             "/home/dev/repos/ccdocker/src" \
-            "$(find "$HOME" -name "repo-manager.sh" -path "*/src/*" | head -1 | xargs dirname 2>/dev/null)"; do
+            "/home/dev/repos/claude-code-repos/src" \
+            "$HOME/repos/ccdocker/src" \
+            "$HOME/repos/claude-code-repos/src"; do
             if [ -d "$possible_dir" ] && [ -f "$possible_dir/repo-manager.sh" ]; then
                 source_dir="$possible_dir"
                 break
@@ -103,22 +105,54 @@ case "${1:-}" in
         if [ -n "$source_dir" ] && [ -d "$source_dir" ]; then
             log "Installing from local development source: $source_dir"
             
-            # Copy core files
-            cp "$source_dir/repo-manager.sh" "$CCR_HOME/bin/ccr-repo-manager" 2>/dev/null || warn "repo-manager.sh not found"
-            cp "$source_dir/aliases.sh" "$CCR_HOME/bin/ccr-aliases" 2>/dev/null || warn "aliases.sh not found"
+            # Function to copy and fix line endings
+            copy_and_fix_endings() {
+                local src="$1"
+                local dest="$2"
+                if [ -f "$src" ]; then
+                    # Copy and fix line endings
+                    if command -v dos2unix >/dev/null 2>&1; then
+                        cp "$src" "$dest" && dos2unix "$dest" 2>/dev/null
+                    else
+                        # Fallback: use sed to remove carriage returns
+                        sed 's/\r$//' "$src" > "$dest"
+                    fi
+                    return 0
+                else
+                    return 1
+                fi
+            }
             
-            # Copy container configs
-            cp "$source_dir"/docker-compose*.yml "$CCR_HOME/containers/" 2>/dev/null || true
-            cp "$source_dir/Dockerfile.claude" "$CCR_HOME/containers/" 2>/dev/null || true
-            cp "$source_dir"/*.sh "$CCR_HOME/containers/" 2>/dev/null || true
+            # Copy core files with line ending fixes
+            copy_and_fix_endings "$source_dir/repo-manager.sh" "$CCR_HOME/bin/ccr-repo-manager" || warn "repo-manager.sh not found"
+            copy_and_fix_endings "$source_dir/aliases.sh" "$CCR_HOME/bin/ccr-aliases" || warn "aliases.sh not found"
+            
+            # Copy container configs (fix line endings for shell scripts)
+            for file in "$source_dir"/docker-compose*.yml; do
+                if [ -f "$file" ]; then
+                    cp "$file" "$CCR_HOME/containers/"
+                fi
+            done
+            
+            for file in "$source_dir"/*.sh; do
+                if [ -f "$file" ]; then
+                    filename=$(basename "$file")
+                    copy_and_fix_endings "$file" "$CCR_HOME/containers/$filename"
+                fi
+            done
+            
+            if [ -f "$source_dir/Dockerfile.claude" ]; then
+                cp "$source_dir/Dockerfile.claude" "$CCR_HOME/containers/"
+            fi
             
             chmod +x "$CCR_HOME/bin"/* 2>/dev/null || true
+            chmod +x "$CCR_HOME/containers"/*.sh 2>/dev/null || true
             
             info "CCR system installed from local development source"
         else
             # Try to download from GitHub (future)
             warn "Local source not found in common locations."
-            warn "Searched: ./src, ../src, /home/dev/repos/ccdocker/src, and PATH"
+            warn "Searched: ./src, ../src, ~/repos/{ccdocker,claude-code-repos}/src"
             warn "GitHub download not yet implemented."
             warn "Manual installation required."
         fi
